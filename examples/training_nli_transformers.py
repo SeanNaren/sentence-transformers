@@ -31,6 +31,8 @@ if __name__ == "__main__":
     parser.add_argument('--num_epochs', default=1, type=int)
     parser.add_argument('--batch_size', default=16, type=int)
     parser.add_argument('--evaluation_steps', default=1000, type=int)
+    parser.add_argument("--do_lower_case", action="store_true",
+                        help="Set to true if using an uncased LM")
     parser.add_argument("--fp16", action="store_true",
                         help="Use Apex Mixed Precision")
 
@@ -51,7 +53,8 @@ if __name__ == "__main__":
 
     # Use BERT for mapping tokens to embeddings
     word_embedding_model = models.Transformers(model_name_or_path=args.model_name_or_path,
-                                               model_type=args.model_type)
+                                               model_type=args.model_type,
+                                               do_lower_case=args.do_lower_case)
 
     # Apply mean pooling to get one fixed sized sentence vector
     pooling_model = models.Pooling(word_embedding_model.get_word_embedding_dimension(),
