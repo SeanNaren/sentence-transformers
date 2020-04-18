@@ -10,10 +10,12 @@ from torch.utils.data import DataLoader
 import math
 from sentence_transformers import models, losses
 from sentence_transformers import SentencesDataset, LoggingHandler, SentenceTransformer
-from sentence_transformers.evaluation import EmbeddingSimilarityEvaluator
+from sentence_transformers.evaluation import EmbeddingSimilarityEvaluator, LabelAccuracyEvaluator
 from sentence_transformers.readers import *
 import logging
 from datetime import datetime
+
+from sentence_transformers.readers.MedNLIDataReader import MedNLIDataReader
 
 MODEL_CLASSES = tuple(m.model_type for m in MODEL_MAPPING)
 ALL_MODELS = tuple(ALL_PRETRAINED_MODEL_ARCHIVE_MAP)
@@ -26,6 +28,7 @@ if __name__ == "__main__":
     parser.add_argument('--model_type', default="bert",
                         help="Model type selected in the list: " + ", ".join(MODEL_CLASSES))
     parser.add_argument('--nli_dataset_path', default="datasets/AllNLI")
+    parser.add_argument('--mli_dataset_path', default="datasets/stsbenchmark")
     parser.add_argument('--sts_dataset_path', default="datasets/stsbenchmark")
     parser.add_argument('--model_output_dir', default="output/")
     parser.add_argument('--num_epochs', default=1, type=int)
@@ -38,6 +41,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    use_mlni = args.mli_dataset_path is not None
+
     #### Just some code to print debug information to stdout
     logging.basicConfig(format='%(asctime)s - %(message)s',
                         datefmt='%Y-%m-%d %H:%M:%S',
@@ -46,6 +51,8 @@ if __name__ == "__main__":
     #### /print debug information to stdout
 
     nli_reader = NLIDataReader(args.nli_dataset_path)
+    if use_mlni:
+        mli_reader = MedNLIDataReader(args.mli_dataset_path)
     sts_reader = STSDataReader(args.sts_dataset_path)
     train_num_labels = nli_reader.get_num_labels()
     model_save_path = args.model_output_dir + '/training_nli_' + args.model_name_or_path + '-' + \
@@ -66,7 +73,12 @@ if __name__ == "__main__":
 
     # Convert the dataset to a DataLoader ready for training
     logging.info("Read AllNLI train dataset")
-    train_data = SentencesDataset(nli_reader.get_examples('train.gz'), model=model)
+
+    train_examples = nli_reader.get_examples('train.gz')
+    if use_mlni:
+        train_examples += mli_reader.get_examples('mli_train_v1.jsonl')
+
+    train_data = SentencesDataset(train_examples, model=model)
     train_dataloader = DataLoader(train_data, shuffle=True, batch_size=args.batch_size)
     train_loss = losses.SoftmaxLoss(model=model, sentence_embedding_dimension=model.get_sentence_embedding_dimension(),
                                     num_labels=train_num_labels)
@@ -96,9 +108,21 @@ if __name__ == "__main__":
     #
     ##############################################################################
 
+    logging.info("STS Benchmark Results")
     model = SentenceTransformer(model_save_path)
     test_data = SentencesDataset(examples=sts_reader.get_examples("sts-test.csv"), model=model)
     test_dataloader = DataLoader(test_data, shuffle=False, batch_size=args.batch_size)
     evaluator = EmbeddingSimilarityEvaluator(test_dataloader)
+    model.evaluate(evaluator)
 
+    logging.info("AllNLI Benchmark Results")
+    test_data = SentencesDataset(examples=nli_reader.get_examples("test.gz"), model=model)
+    test_dataloader = DataLoader(test_data, shuffle=False, batch_size=args.batch_size)
+    evaluator = LabelAccuracyEvaluator(test_dataloader)
+    model.evaluate(evaluator)
+
+    logging.info("MedNLI Benchmark Results")
+    test_data = SentencesDataset(examples=mli_reader.get_examples("mli_test_v1.jsonl"), model=model)
+    test_dataloader = DataLoader(test_data, shuffle=False, batch_size=args.batch_size)
+    evaluator = LabelAccuracyEvaluator(test_dataloader)
     model.evaluate(evaluator)
