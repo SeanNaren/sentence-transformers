@@ -28,8 +28,8 @@ if __name__ == "__main__":
     parser.add_argument('--model_type', default="bert",
                         help="Model type selected in the list: " + ", ".join(MODEL_CLASSES))
     parser.add_argument('--nli_dataset_path', default="datasets/AllNLI")
-    parser.add_argument('--mli_dataset_path', default="datasets/stsbenchmark")
     parser.add_argument('--sts_dataset_path', default="datasets/stsbenchmark")
+    parser.add_argument('--mli_dataset_path', default=None)
     parser.add_argument('--model_output_dir', default="output/")
     parser.add_argument('--num_epochs', default=1, type=int)
     parser.add_argument('--batch_size', default=16, type=int)
@@ -76,6 +76,7 @@ if __name__ == "__main__":
 
     train_examples = nli_reader.get_examples('train.gz')
     if use_mlni:
+        logging.info("Loading additional MedNLI train dataset")
         train_examples += mli_reader.get_examples('mli_train_v1.jsonl')
 
     train_data = SentencesDataset(train_examples, model=model)
@@ -115,14 +116,9 @@ if __name__ == "__main__":
     evaluator = EmbeddingSimilarityEvaluator(test_dataloader)
     model.evaluate(evaluator)
 
-    logging.info("AllNLI Benchmark Results")
-    test_data = SentencesDataset(examples=nli_reader.get_examples("test.gz"), model=model)
-    test_dataloader = DataLoader(test_data, shuffle=False, batch_size=args.batch_size)
-    evaluator = LabelAccuracyEvaluator(test_dataloader)
-    model.evaluate(evaluator)
-
-    logging.info("MedNLI Benchmark Results")
-    test_data = SentencesDataset(examples=mli_reader.get_examples("mli_test_v1.jsonl"), model=model)
-    test_dataloader = DataLoader(test_data, shuffle=False, batch_size=args.batch_size)
-    evaluator = LabelAccuracyEvaluator(test_dataloader)
-    model.evaluate(evaluator)
+    if use_mlni:
+        logging.info("MedNLI Benchmark Results")
+        test_data = SentencesDataset(examples=mli_reader.get_examples("mli_test_v1.jsonl"), model=model)
+        test_dataloader = DataLoader(test_data, shuffle=False, batch_size=args.batch_size)
+        evaluator = LabelAccuracyEvaluator(test_dataloader, softmax_model=train_loss)
+        model.evaluate(evaluator)

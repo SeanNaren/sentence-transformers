@@ -1,4 +1,5 @@
 import json
+import os
 
 from sentence_transformers.readers import NLIDataReader
 from . import InputExample
@@ -14,7 +15,7 @@ class MedNLIDataReader(NLIDataReader):
         Expects that self.dataset_folder contains the files mli_train_v1.jsonl, mli_dev_v1.jsonl, mli_test_v1.jsonl
         """
         raw_files = []
-        with open(filename) as f:
+        with open(os.path.join(self.dataset_folder, filename)) as f:
             for line in f:
                 raw_files.append(json.loads(line))
 
