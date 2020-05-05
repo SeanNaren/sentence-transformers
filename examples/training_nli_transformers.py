@@ -30,6 +30,8 @@ if __name__ == "__main__":
     parser.add_argument('--nli_dataset_path', default="datasets/AllNLI")
     parser.add_argument('--sts_dataset_path', default="datasets/stsbenchmark")
     parser.add_argument('--mli_dataset_path', default=None)
+    parser.add_argument('--exclude_mli', action="store_true",
+                        help="Exclude MLI from training, but still evaluate the final model.")
     parser.add_argument('--model_output_dir', default="output/")
     parser.add_argument('--num_epochs', default=1, type=int)
     parser.add_argument('--batch_size', default=16, type=int)
@@ -75,7 +77,7 @@ if __name__ == "__main__":
     logging.info("Read AllNLI train dataset")
 
     train_examples = nli_reader.get_examples('train.gz')
-    if use_mlni:
+    if use_mlni and not args.exclude_mli:
         logging.info("Loading additional MedNLI train dataset")
         train_examples += mli_reader.get_examples('mli_train_v1.jsonl')
 
