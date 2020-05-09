@@ -83,7 +83,7 @@ class Transformers(nn.Module):
         tokens = tokens[:max_seq_length]
 
         # Account for [CLS] and [SEP] with "- 2" and with "- 3" for RoBERTa.
-        special_tokens_count = self.tokenizer.num_added_tokens()
+        special_tokens_count = self.tokenizer.num_special_tokens_to_add()
         max_seq_length += special_tokens_count  # TODO this can go over the maximum seq length, needs to be fixed
 
         tokens += [sep_token]
